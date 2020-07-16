@@ -158,6 +158,89 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shaoxyz.github.io/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="shaoxyz">
+      <meta itemprop="description" content="你看上去像是体面人">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="shaoxyz">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/" class="post-title-link" itemprop="url">SQL联表查询辅助表去重</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-07-16 20:46:23" itemprop="dateCreated datePublished" datetime="2020-07-16T20:46:23+08:00">2020-07-16</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/MySQL/" itemprop="url" rel="index"><span itemprop="name">MySQL</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>老东家的运营妹子做数据分析时提的一个需求</p>
+<p>统计所有用户在注册当天是否完成过消费</p>
+<p>涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间</p>
+<p>我们的MySQL版本是5.7.18</p>
+<p>先说遇到的问题</p>
+<p>首先，用 <code>GROUP BY</code> 会触发 <a href="https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_only_full_group_by" target="_blank" rel="noopener"><code>ONLY_FULL_GROUP_BY</code></a></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> u.id, u.created_at, o.created_at </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u </span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = user.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
+<p>简单来说，MySQL5.7.5之后，SQL需要检测函数依赖关系，<code>SELECT</code> &amp; <code>ORDER BY</code> &amp; <code>HAVING</code> 不能引用非聚合列的查询</p>
+<p>之所以要这么做是为了避免当出现不正确和不可预测的查询结果时MySQL没有任何报错和警告，这里有<a href="https://mysqlserverteam.com/mysql-5-7-only_full_group_by-improved-recognizing-functional-dependencies-enabled-by-default/" target="_blank" rel="noopener">具体例子与说明</a></p>
+<p>再者，用<code>MIN</code> ||  <code>MAX</code> || <code>ANY_VALUE</code>将非聚合列包起来也是可行的，但实测在数据量较大的情况下很慢。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="keyword">MIN</span>(u.id), <span class="keyword">MIN</span>(u.created_at), <span class="keyword">MIN</span>(o.created_at) </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u <span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = u.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
+<p>推测是这么做依然没有真正意义上的去重，而是类似与把原来的查询作为子查询又过滤了一遍</p>
+<p>想要的效果是：直接限制辅助表只取一行</p>
+<p>在<a href="https://stackoverflow.com/questions/11885394/mysql-join-with-limit-1/11885521#11885521" target="_blank" rel="noopener">stackoverflow</a>上找到了最佳答案</p>
+<p>最后修改SQL如下：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> </span><br><span class="line">    user.id, </span><br><span class="line">    <span class="keyword">CASE</span> </span><br><span class="line">        <span class="keyword">WHEN</span> <span class="built_in">DATE</span>(o.created_at) = <span class="built_in">DATE</span>(u.created_at) <span class="keyword">THEN</span> <span class="number">1</span></span><br><span class="line">        <span class="keyword">ELSE</span> <span class="number">0</span></span><br><span class="line">    <span class="keyword">END</span> <span class="keyword">AS</span> <span class="string">'是否在注册当天购买'</span>, </span><br><span class="line">    <span class="built_in">DATE</span>(u.created_at) <span class="keyword">AS</span> <span class="string">'注册时间'</span></span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u</span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.id = ( <span class="comment"># 注意这里必须是主键</span></span><br><span class="line">    <span class="keyword">SELECT</span> o2.id</span><br><span class="line">    <span class="keyword">FROM</span> orders o2</span><br><span class="line">    <span class="keyword">WHERE</span> o2.buyer_id = u.id</span><br><span class="line">        <span class="keyword">AND</span> o2.state = <span class="number">1</span></span><br><span class="line">    <span class="keyword">ORDER</span> <span class="keyword">BY</span> o2.id</span><br><span class="line">    <span class="keyword">LIMIT</span> <span class="number">1</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>用户表30w<br>订单表70w<br>时间大概在10～20ms, 可以接受<br><img src="/images/left-join-limit-1.png" width="50%" ></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://shaoxyz.github.io/2020/07/13/Python%E5%AE%9E%E7%8E%B0%E7%AD%96%E7%95%A5%E6%A8%A1%E5%BC%8F/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -482,20 +565,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-count">4</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-count">3</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-count">2</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
