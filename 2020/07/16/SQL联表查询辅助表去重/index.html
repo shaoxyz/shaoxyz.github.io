@@ -20,12 +20,12 @@
     var CONFIG = {"hostname":"shaoxyz.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="老东家的运营妹子做数据分析时提的一个需求 统计所有用户在注册当天是否完成过消费 涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间 我们的MySQL版本是5.7.18 先说遇到的问题 首先，用 GROUP BY 会触发 ONLY_FULL_GROUP_BY 1234SELECT u.id, u.created_at, o.created_at FROM user u LE">
+  <meta name="description" content="老东家运营妹子要做数据分析提的一个需求 统计所有用户在注册当天是否完成过消费 涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间 我们的MySQL版本是5.7.18 先说遇到的问题 首先，用 GROUP BY 会触发 ONLY_FULL_GROUP_BY 1234SELECT u.id, u.created_at, o.created_at FROM user u LEF">
 <meta property="og:type" content="article">
 <meta property="og:title" content="SQL联表查询辅助表去重">
 <meta property="og:url" content="http://shaoxyz.github.io/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/index.html">
 <meta property="og:site_name" content="shaoxyz">
-<meta property="og:description" content="老东家的运营妹子做数据分析时提的一个需求 统计所有用户在注册当天是否完成过消费 涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间 我们的MySQL版本是5.7.18 先说遇到的问题 首先，用 GROUP BY 会触发 ONLY_FULL_GROUP_BY 1234SELECT u.id, u.created_at, o.created_at FROM user u LE">
+<meta property="og:description" content="老东家运营妹子要做数据分析提的一个需求 统计所有用户在注册当天是否完成过消费 涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间 我们的MySQL版本是5.7.18 先说遇到的问题 首先，用 GROUP BY 会触发 ONLY_FULL_GROUP_BY 1234SELECT u.id, u.created_at, o.created_at FROM user u LEF">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="http://shaoxyz.github.io/images/left-join-limit-1.png">
 <meta property="article:published_time" content="2020-07-16T12:46:23.000Z">
@@ -210,14 +210,14 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>老东家的运营妹子做数据分析时提的一个需求</p>
+        <p>老东家运营妹子要做数据分析提的一个需求</p>
 <p>统计所有用户在注册当天是否完成过消费</p>
 <p>涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间</p>
 <p>我们的MySQL版本是5.7.18</p>
 <p>先说遇到的问题</p>
 <p>首先，用 <code>GROUP BY</code> 会触发 <a href="https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_only_full_group_by" target="_blank" rel="noopener"><code>ONLY_FULL_GROUP_BY</code></a></p>
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> u.id, u.created_at, o.created_at </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u </span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = user.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
-<p>简单来说，MySQL5.7.5之后，SQL需要检测函数依赖关系，<code>SELECT</code> &amp; <code>ORDER BY</code> &amp; <code>HAVING</code> 不能引用非聚合列的查询</p>
+<p>简单来说，MySQL5.7.5之后，SQL需要检测函数依赖关系，<code>SELECT</code> &amp; <code>ORDER BY</code> &amp; <code>HAVING</code> 不能引用非聚合列</p>
 <p>之所以要这么做是为了避免当出现不正确和不可预测的查询结果时MySQL没有任何报错和警告，这里有<a href="https://mysqlserverteam.com/mysql-5-7-only_full_group_by-improved-recognizing-functional-dependencies-enabled-by-default/" target="_blank" rel="noopener">具体例子与说明</a></p>
 <p>再者，用<code>MIN</code> ||  <code>MAX</code> || <code>ANY_VALUE</code>将非聚合列包起来也是可行的，但实测在数据量较大的情况下很慢。</p>
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="keyword">MIN</span>(u.id), <span class="keyword">MIN</span>(u.created_at), <span class="keyword">MIN</span>(o.created_at) </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u <span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = u.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
