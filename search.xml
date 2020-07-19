@@ -1,34 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>SQL联表查询辅助表去重</title>
-    <url>/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/</url>
-    <content><![CDATA[<p>老东家运营妹子要做数据分析提的一个需求</p>
-<p>统计所有用户在注册当天是否完成过消费</p>
-<p>涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间</p>
-<p>我们的MySQL版本是5.7.18</p>
-<p>先说遇到的问题</p>
-<p>首先，用 <code>GROUP BY</code> 会触发 <a href="https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_only_full_group_by" target="_blank" rel="noopener"><code>ONLY_FULL_GROUP_BY</code></a></p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> u.id, u.created_at, o.created_at </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u </span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = user.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
-<p>简单来说，MySQL5.7.5之后，SQL需要检测函数依赖关系，<code>SELECT</code> &amp; <code>ORDER BY</code> &amp; <code>HAVING</code> 不能引用非聚合列</p>
-<p>之所以要这么做是为了避免当出现不正确和不可预测的查询结果时MySQL没有任何报错和警告，这里有<a href="https://mysqlserverteam.com/mysql-5-7-only_full_group_by-improved-recognizing-functional-dependencies-enabled-by-default/" target="_blank" rel="noopener">具体例子与说明</a></p>
-<p>再者，用<code>MIN</code> ||  <code>MAX</code> || <code>ANY_VALUE</code>将非聚合列包起来也是可行的，但实测在数据量较大的情况下很慢。</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="keyword">MIN</span>(u.id), <span class="keyword">MIN</span>(u.created_at), <span class="keyword">MIN</span>(o.created_at) </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u <span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = u.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
-<p>推测是这么做依然没有真正意义上的去重，而是类似与把原来的查询作为子查询又过滤了一遍</p>
-<p>想要的效果是：直接限制辅助表只取一行</p>
-<p>在<a href="https://stackoverflow.com/questions/11885394/mysql-join-with-limit-1/11885521#11885521" target="_blank" rel="noopener">stackoverflow</a>上找到了最佳答案</p>
-<p>最后修改SQL如下：</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> </span><br><span class="line">    user.id, </span><br><span class="line">    <span class="keyword">CASE</span> </span><br><span class="line">        <span class="keyword">WHEN</span> <span class="built_in">DATE</span>(o.created_at) = <span class="built_in">DATE</span>(u.created_at) <span class="keyword">THEN</span> <span class="number">1</span></span><br><span class="line">        <span class="keyword">ELSE</span> <span class="number">0</span></span><br><span class="line">    <span class="keyword">END</span> <span class="keyword">AS</span> <span class="string">'是否在注册当天购买'</span>, </span><br><span class="line">    <span class="built_in">DATE</span>(u.created_at) <span class="keyword">AS</span> <span class="string">'注册时间'</span></span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u</span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.id = ( <span class="comment"># 注意这里必须是主键</span></span><br><span class="line">    <span class="keyword">SELECT</span> o2.id</span><br><span class="line">    <span class="keyword">FROM</span> orders o2</span><br><span class="line">    <span class="keyword">WHERE</span> o2.buyer_id = u.id</span><br><span class="line">        <span class="keyword">AND</span> o2.state = <span class="number">1</span></span><br><span class="line">    <span class="keyword">ORDER</span> <span class="keyword">BY</span> o2.id</span><br><span class="line">    <span class="keyword">LIMIT</span> <span class="number">1</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
-<p>用户表30w<br>订单表70w<br>时间大概在10～20ms, 可以接受<br><img src="/images/left-join-limit-1.png" width="50%" ></p>
-]]></content>
-      <categories>
-        <category>MySQL</category>
-      </categories>
-      <tags>
-        <tag>SQL</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>扶我起来，我还能再优化一下代码</title>
     <url>/2020/07/10/%E6%89%B6%E6%88%91%E8%B5%B7%E6%9D%A5%EF%BC%8C%E6%88%91%E8%BF%98%E8%83%BD%E5%86%8D%E4%BC%98%E5%8C%96%E4%B8%80%E4%B8%8B%E4%BB%A3%E7%A0%81/</url>
     <content><![CDATA[<h1 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h1><p>面试官老王：给你出一道题吧，很简单，统计字符串中各个字符出现的次数</p>
@@ -69,6 +41,34 @@
       </categories>
       <tags>
         <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>SQL联表查询辅助表去重</title>
+    <url>/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/</url>
+    <content><![CDATA[<p>老东家运营妹子要做数据分析提的一个需求</p>
+<p>统计所有用户在注册当天是否完成过消费</p>
+<p>涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间</p>
+<p>我们的MySQL版本是5.7.18</p>
+<p>先说遇到的问题</p>
+<p>首先，用 <code>GROUP BY</code> 会触发 <a href="https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_only_full_group_by" target="_blank" rel="noopener"><code>ONLY_FULL_GROUP_BY</code></a></p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> u.id, u.created_at, o.created_at </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u </span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = user.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
+<p>简单来说，MySQL5.7.5之后，SQL需要检测函数依赖关系，<code>SELECT</code> &amp; <code>ORDER BY</code> &amp; <code>HAVING</code> 不能引用非聚合列</p>
+<p>之所以要这么做是为了避免当出现不正确和不可预测的查询结果时MySQL没有任何报错和警告，这里有<a href="https://mysqlserverteam.com/mysql-5-7-only_full_group_by-improved-recognizing-functional-dependencies-enabled-by-default/" target="_blank" rel="noopener">具体例子与说明</a></p>
+<p>再者，用<code>MIN</code> ||  <code>MAX</code> || <code>ANY_VALUE</code>将非聚合列包起来也是可行的，但实测在数据量较大的情况下很慢。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="keyword">MIN</span>(u.id), <span class="keyword">MIN</span>(u.created_at), <span class="keyword">MIN</span>(o.created_at) </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u <span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = u.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
+<p>推测是这么做依然没有真正意义上的去重，而是类似与把原来的查询作为子查询又过滤了一遍</p>
+<p>想要的效果是：直接限制辅助表只取一行</p>
+<p>在<a href="https://stackoverflow.com/questions/11885394/mysql-join-with-limit-1/11885521#11885521" target="_blank" rel="noopener">stackoverflow</a>上找到了最佳答案</p>
+<p>最后修改SQL如下：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> </span><br><span class="line">    user.id, </span><br><span class="line">    <span class="keyword">CASE</span> </span><br><span class="line">        <span class="keyword">WHEN</span> <span class="built_in">DATE</span>(o.created_at) = <span class="built_in">DATE</span>(u.created_at) <span class="keyword">THEN</span> <span class="number">1</span></span><br><span class="line">        <span class="keyword">ELSE</span> <span class="number">0</span></span><br><span class="line">    <span class="keyword">END</span> <span class="keyword">AS</span> <span class="string">'是否在注册当天购买'</span>, </span><br><span class="line">    <span class="built_in">DATE</span>(u.created_at) <span class="keyword">AS</span> <span class="string">'注册时间'</span></span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u</span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.id = ( <span class="comment"># 注意这里必须是主键</span></span><br><span class="line">    <span class="keyword">SELECT</span> o2.id</span><br><span class="line">    <span class="keyword">FROM</span> orders o2</span><br><span class="line">    <span class="keyword">WHERE</span> o2.buyer_id = u.id</span><br><span class="line">        <span class="keyword">AND</span> o2.state = <span class="number">1</span></span><br><span class="line">    <span class="keyword">ORDER</span> <span class="keyword">BY</span> o2.id</span><br><span class="line">    <span class="keyword">LIMIT</span> <span class="number">1</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>用户表30w<br>订单表70w<br>时间大概在10～20ms, 可以接受<br><img src="/images/left-join-limit-1.png" width="50%" ></p>
+]]></content>
+      <categories>
+        <category>MySQL</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
       </tags>
   </entry>
   <entry>
