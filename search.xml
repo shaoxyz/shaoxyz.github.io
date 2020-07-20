@@ -1,6 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>SQL联表查询辅助表去重</title>
+    <url>/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/</url>
+    <content><![CDATA[<p>老东家运营妹子要做数据分析提的一个需求</p>
+<p>统计所有用户在注册当天是否完成过消费</p>
+<p>涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间</p>
+<p>我们的MySQL版本是5.7.18</p>
+<p>先说遇到的问题</p>
+<p>首先，用 <code>GROUP BY</code> 会触发 <a href="https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_only_full_group_by" target="_blank" rel="noopener"><code>ONLY_FULL_GROUP_BY</code></a></p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> u.id, u.created_at, o.created_at </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u </span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = user.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
+<p>简单来说，MySQL5.7.5之后，SQL需要检测函数依赖关系，<code>SELECT</code> &amp; <code>ORDER BY</code> &amp; <code>HAVING</code> 不能引用非聚合列</p>
+<p>之所以要这么做是为了避免当出现不正确和不可预测的查询结果时MySQL没有任何报错和警告，这里有<a href="https://mysqlserverteam.com/mysql-5-7-only_full_group_by-improved-recognizing-functional-dependencies-enabled-by-default/" target="_blank" rel="noopener">具体例子与说明</a></p>
+<p>再者，用<code>MIN</code> ||  <code>MAX</code> || <code>ANY_VALUE</code>将非聚合列包起来也是可行的，但实测在数据量较大的情况下很慢。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="keyword">MIN</span>(u.id), <span class="keyword">MIN</span>(u.created_at), <span class="keyword">MIN</span>(o.created_at) </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u <span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = u.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
+<p>推测是这么做依然没有真正意义上的去重，而是类似与把原来的查询作为子查询又过滤了一遍</p>
+<p>想要的效果是：直接限制辅助表只取一行</p>
+<p>在<a href="https://stackoverflow.com/questions/11885394/mysql-join-with-limit-1/11885521#11885521" target="_blank" rel="noopener">stackoverflow</a>上找到了最佳答案</p>
+<p>最后修改SQL如下：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> </span><br><span class="line">    user.id, </span><br><span class="line">    <span class="keyword">CASE</span> </span><br><span class="line">        <span class="keyword">WHEN</span> <span class="built_in">DATE</span>(o.created_at) = <span class="built_in">DATE</span>(u.created_at) <span class="keyword">THEN</span> <span class="number">1</span></span><br><span class="line">        <span class="keyword">ELSE</span> <span class="number">0</span></span><br><span class="line">    <span class="keyword">END</span> <span class="keyword">AS</span> <span class="string">'是否在注册当天购买'</span>, </span><br><span class="line">    <span class="built_in">DATE</span>(u.created_at) <span class="keyword">AS</span> <span class="string">'注册时间'</span></span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u</span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.id = ( <span class="comment"># 注意这里必须是主键</span></span><br><span class="line">    <span class="keyword">SELECT</span> o2.id</span><br><span class="line">    <span class="keyword">FROM</span> orders o2</span><br><span class="line">    <span class="keyword">WHERE</span> o2.buyer_id = u.id</span><br><span class="line">        <span class="keyword">AND</span> o2.state = <span class="number">1</span></span><br><span class="line">    <span class="keyword">ORDER</span> <span class="keyword">BY</span> o2.id</span><br><span class="line">    <span class="keyword">LIMIT</span> <span class="number">1</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>用户表30w<br>订单表70w<br>时间大概在10～20ms, 可以接受<br><img src="/images/left-join-limit-1.png" width="50%" ></p>
+]]></content>
+      <categories>
+        <category>MySQL</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>hello world</title>
+    <url>/2020/05/21/hello-world/</url>
+    <content><![CDATA[]]></content>
+  </entry>
+  <entry>
+    <title>将包含父子关系值的列表转为树状嵌套字典</title>
+    <url>/2020/07/20/%E5%B0%86%E5%8C%85%E5%90%AB%E7%88%B6%E5%AD%90%E5%85%B3%E7%B3%BB%E5%80%BC%E7%9A%84%E5%88%97%E8%A1%A8%E8%BD%AC%E4%B8%BA%E6%A0%91%E7%8A%B6%E5%B5%8C%E5%A5%97%E5%AD%97%E5%85%B8/</url>
+    <content><![CDATA[<p>记录一道笔试题</p>
+<h2 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h2><blockquote>
+<p>假设前端同学通过接口向后端传了天猫的行业信息，例如：</p>
+<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="attr">industry_list</span> = [</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"parent_ind"</span> : <span class="string">"女装"</span>,</span><br><span class="line">     <span class="string">"name"</span> : <span class="string">"连衣裙"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"女装"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"parent_ind"</span> : <span class="string">"女装"</span>,</span><br><span class="line">     <span class="string">"name"</span> : <span class="string">"半身裙"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"parent_ind"</span> : <span class="string">"女装"</span>,</span><br><span class="line">     <span class="string">"name"</span> : <span class="string">"A字裙"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"数码"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">"parent_ind"</span> : <span class="string">"数码"</span>,</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"电脑配件"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">"parent_ind"</span> : <span class="string">"电脑配件"</span>,</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"内存"</span></span><br><span class="line">  &#125;,</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>为了取用方便，我们希望可以将其转换为树状格式，例如：</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"数码"</span>: &#123;</span><br><span class="line">    <span class="attr">"电脑配件"</span>: &#123;</span><br><span class="line">        <span class="attr">"内存"</span> : &#123;&#125;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"女装"</span> : &#123;</span><br><span class="line">     <span class="attr">"连衣裙"</span>: &#123;&#125;,</span><br><span class="line">    <span class="attr">"半身裙"</span>: &#123;&#125;,</span><br><span class="line">    <span class="attr">"A字裙"</span>: &#123;&#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现一个方法完成这个转换,时间复杂度请控制在O(n)</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">convert_format</span><span class="params">(data)</span>:</span></span><br><span class="line">       <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+</blockquote>
+<h2 id="考察的知识点"><a href="#考察的知识点" class="headerlink" title="考察的知识点"></a>考察的知识点</h2><pre><code>1.数据类型，Python里set的查找效率比list高
+2.字典推导，更Pythonic的写法
+3.对象引用，Python的赋值是给值贴上标签，而不是把值放入盒子</code></pre><img src="/images/assignment.png" title="流畅的Python 第八章" style="width: 70%">
+
+<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><ul>
+<li>先根据<code>industry_list</code>构建一个包含所有项的字典<code>data_dict</code>；</li>
+<li>遍历<code>industry_list</code>并利用<strong>对象引用</strong>的特点自动更新<code>data_dict</code>的嵌套关系；</li>
+<li>最后过滤掉那些只存在于嵌套之内的值；</li>
+</ul>
+<h2 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"><span class="string">@author: shaoxyz</span></span><br><span class="line"><span class="string">@file: convert_format.py</span></span><br><span class="line"><span class="string">@time: 2020-07-20 11:09</span></span><br><span class="line"><span class="string">@desc:</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"><span class="keyword">from</span> typing <span class="keyword">import</span> List</span><br><span class="line">industry_list = [</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"女装"</span>, <span class="string">"name"</span>: <span class="string">"连衣裙"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span>: <span class="string">"女装"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"女装"</span>, <span class="string">"name"</span>: <span class="string">"半身裙"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"女装"</span>, <span class="string">"name"</span>: <span class="string">"A字裙"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"数码"</span>, <span class="string">"name"</span>: <span class="string">"电脑配件"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"电脑配件"</span>, <span class="string">"name"</span>: <span class="string">"内存"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span>: <span class="string">"数码"</span>&#125;,</span><br><span class="line">]</span><br><span class="line"></span><br><span class="line">expect_output = &#123;</span><br><span class="line">    <span class="string">"数码"</span>: &#123;</span><br><span class="line">        <span class="string">"电脑配件"</span>: &#123;</span><br><span class="line">            <span class="string">"内存"</span>: &#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;, </span><br><span class="line">    <span class="string">"女装"</span>: &#123;</span><br><span class="line">        <span class="string">"连衣裙"</span>: &#123;&#125;, </span><br><span class="line">        <span class="string">"半身裙"</span>: &#123;&#125;, </span><br><span class="line">        <span class="string">"A字裙"</span>: &#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">convert_format</span><span class="params">(data: List[dict])</span> -&gt; dict:</span></span><br><span class="line">    <span class="string">"""</span></span><br><span class="line"><span class="string">    将包含父子关系值的列表 转换为 嵌套字典</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line"></span><br><span class="line">    data_dict = &#123;i.get(<span class="string">"name"</span>): &#123;&#125; <span class="keyword">for</span> i <span class="keyword">in</span> data&#125;</span><br><span class="line">    has_parent = set()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> data:</span><br><span class="line">        parent_ind = i.get(<span class="string">"parent_ind"</span>)</span><br><span class="line">        name = i.get(<span class="string">"name"</span>)</span><br><span class="line">        <span class="keyword">if</span> parent_ind:</span><br><span class="line">            has_parent.add(name)</span><br><span class="line">        <span class="keyword">if</span> parent_ind <span class="keyword">in</span> data_dict:</span><br><span class="line">            data_dict[parent_ind][name] = data_dict[name]  <span class="comment"># KEY</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Filter</span></span><br><span class="line">    res = &#123;key: val <span class="keyword">for</span> key, val <span class="keyword">in</span> data_dict.items() <span class="keyword">if</span> key <span class="keyword">not</span> <span class="keyword">in</span> has_parent&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> res</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_convert_format</span><span class="params">()</span>:</span></span><br><span class="line">    res = convert_format(industry_list)</span><br><span class="line">    <span class="keyword">assert</span> res == expect_output</span><br><span class="line">    print(<span class="string">"well done"</span>)</span><br></pre></td></tr></table></figure>
+
+
+]]></content>
+      <categories>
+        <category>Python</category>
+      </categories>
+      <tags>
+        <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>扶我起来，我还能再优化一下代码</title>
     <url>/2020/07/10/%E6%89%B6%E6%88%91%E8%B5%B7%E6%9D%A5%EF%BC%8C%E6%88%91%E8%BF%98%E8%83%BD%E5%86%8D%E4%BC%98%E5%8C%96%E4%B8%80%E4%B8%8B%E4%BB%A3%E7%A0%81/</url>
     <content><![CDATA[<h1 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h1><p>面试官老王：给你出一道题吧，很简单，统计字符串中各个字符出现的次数</p>
@@ -42,39 +109,6 @@
       <tags>
         <tag>Python</tag>
       </tags>
-  </entry>
-  <entry>
-    <title>SQL联表查询辅助表去重</title>
-    <url>/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/</url>
-    <content><![CDATA[<p>老东家运营妹子要做数据分析提的一个需求</p>
-<p>统计所有用户在注册当天是否完成过消费</p>
-<p>涉及用户表和订单表的联表查询, 主要字段为用户id，注册时间，第一笔消费时间</p>
-<p>我们的MySQL版本是5.7.18</p>
-<p>先说遇到的问题</p>
-<p>首先，用 <code>GROUP BY</code> 会触发 <a href="https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_only_full_group_by" target="_blank" rel="noopener"><code>ONLY_FULL_GROUP_BY</code></a></p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> u.id, u.created_at, o.created_at </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u </span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = user.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
-<p>简单来说，MySQL5.7.5之后，SQL需要检测函数依赖关系，<code>SELECT</code> &amp; <code>ORDER BY</code> &amp; <code>HAVING</code> 不能引用非聚合列</p>
-<p>之所以要这么做是为了避免当出现不正确和不可预测的查询结果时MySQL没有任何报错和警告，这里有<a href="https://mysqlserverteam.com/mysql-5-7-only_full_group_by-improved-recognizing-functional-dependencies-enabled-by-default/" target="_blank" rel="noopener">具体例子与说明</a></p>
-<p>再者，用<code>MIN</code> ||  <code>MAX</code> || <code>ANY_VALUE</code>将非聚合列包起来也是可行的，但实测在数据量较大的情况下很慢。</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="keyword">MIN</span>(u.id), <span class="keyword">MIN</span>(u.created_at), <span class="keyword">MIN</span>(o.created_at) </span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u <span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.buyer_id = u.id <span class="keyword">AND</span> o.state = <span class="number">1</span> </span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> o.buyer_id</span><br></pre></td></tr></table></figure>
-<p>推测是这么做依然没有真正意义上的去重，而是类似与把原来的查询作为子查询又过滤了一遍</p>
-<p>想要的效果是：直接限制辅助表只取一行</p>
-<p>在<a href="https://stackoverflow.com/questions/11885394/mysql-join-with-limit-1/11885521#11885521" target="_blank" rel="noopener">stackoverflow</a>上找到了最佳答案</p>
-<p>最后修改SQL如下：</p>
-<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> </span><br><span class="line">    user.id, </span><br><span class="line">    <span class="keyword">CASE</span> </span><br><span class="line">        <span class="keyword">WHEN</span> <span class="built_in">DATE</span>(o.created_at) = <span class="built_in">DATE</span>(u.created_at) <span class="keyword">THEN</span> <span class="number">1</span></span><br><span class="line">        <span class="keyword">ELSE</span> <span class="number">0</span></span><br><span class="line">    <span class="keyword">END</span> <span class="keyword">AS</span> <span class="string">'是否在注册当天购买'</span>, </span><br><span class="line">    <span class="built_in">DATE</span>(u.created_at) <span class="keyword">AS</span> <span class="string">'注册时间'</span></span><br><span class="line"><span class="keyword">FROM</span> <span class="keyword">user</span> u</span><br><span class="line"><span class="keyword">LEFT</span> <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> o.id = ( <span class="comment"># 注意这里必须是主键</span></span><br><span class="line">    <span class="keyword">SELECT</span> o2.id</span><br><span class="line">    <span class="keyword">FROM</span> orders o2</span><br><span class="line">    <span class="keyword">WHERE</span> o2.buyer_id = u.id</span><br><span class="line">        <span class="keyword">AND</span> o2.state = <span class="number">1</span></span><br><span class="line">    <span class="keyword">ORDER</span> <span class="keyword">BY</span> o2.id</span><br><span class="line">    <span class="keyword">LIMIT</span> <span class="number">1</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
-<p>用户表30w<br>订单表70w<br>时间大概在10～20ms, 可以接受<br><img src="/images/left-join-limit-1.png" width="50%" ></p>
-]]></content>
-      <categories>
-        <category>MySQL</category>
-      </categories>
-      <tags>
-        <tag>SQL</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>hello world</title>
-    <url>/2020/05/21/hello-world/</url>
-    <content><![CDATA[]]></content>
   </entry>
   <entry>
     <title>Python实现策略模式</title>

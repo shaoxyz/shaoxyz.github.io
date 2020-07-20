@@ -195,6 +195,104 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://shaoxyz.github.io/2020/07/20/%E5%B0%86%E5%8C%85%E5%90%AB%E7%88%B6%E5%AD%90%E5%85%B3%E7%B3%BB%E5%80%BC%E7%9A%84%E5%88%97%E8%A1%A8%E8%BD%AC%E4%B8%BA%E6%A0%91%E7%8A%B6%E5%B5%8C%E5%A5%97%E5%AD%97%E5%85%B8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="shaoxyz">
+      <meta itemprop="description" content="你看上去像是体面人">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="shaoxyz">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/07/20/%E5%B0%86%E5%8C%85%E5%90%AB%E7%88%B6%E5%AD%90%E5%85%B3%E7%B3%BB%E5%80%BC%E7%9A%84%E5%88%97%E8%A1%A8%E8%BD%AC%E4%B8%BA%E6%A0%91%E7%8A%B6%E5%B5%8C%E5%A5%97%E5%AD%97%E5%85%B8/" class="post-title-link" itemprop="url">将包含父子关系值的列表转为树状嵌套字典</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-07-20 21:55:15" itemprop="dateCreated datePublished" datetime="2020-07-20T21:55:15+08:00">2020-07-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2020/07/20/%E5%B0%86%E5%8C%85%E5%90%AB%E7%88%B6%E5%AD%90%E5%85%B3%E7%B3%BB%E5%80%BC%E7%9A%84%E5%88%97%E8%A1%A8%E8%BD%AC%E4%B8%BA%E6%A0%91%E7%8A%B6%E5%B5%8C%E5%A5%97%E5%AD%97%E5%85%B8/" class="post-meta-item leancloud_visitors" data-flag-title="将包含父子关系值的列表转为树状嵌套字典" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>记录一道笔试题</p>
+<h2 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h2><blockquote>
+<p>假设前端同学通过接口向后端传了天猫的行业信息，例如：</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">industry_list</span> = [</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"parent_ind"</span> : <span class="string">"女装"</span>,</span><br><span class="line">     <span class="string">"name"</span> : <span class="string">"连衣裙"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"女装"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"parent_ind"</span> : <span class="string">"女装"</span>,</span><br><span class="line">     <span class="string">"name"</span> : <span class="string">"半身裙"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"parent_ind"</span> : <span class="string">"女装"</span>,</span><br><span class="line">     <span class="string">"name"</span> : <span class="string">"A字裙"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"数码"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">"parent_ind"</span> : <span class="string">"数码"</span>,</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"电脑配件"</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">"parent_ind"</span> : <span class="string">"电脑配件"</span>,</span><br><span class="line">     <span class="string">"name"</span>: <span class="string">"内存"</span></span><br><span class="line">  &#125;,</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>为了取用方便，我们希望可以将其转换为树状格式，例如：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">"数码"</span>: &#123;</span><br><span class="line">    <span class="attr">"电脑配件"</span>: &#123;</span><br><span class="line">        <span class="attr">"内存"</span> : &#123;&#125;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">"女装"</span> : &#123;</span><br><span class="line">     <span class="attr">"连衣裙"</span>: &#123;&#125;,</span><br><span class="line">    <span class="attr">"半身裙"</span>: &#123;&#125;,</span><br><span class="line">    <span class="attr">"A字裙"</span>: &#123;&#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现一个方法完成这个转换,时间复杂度请控制在O(n)</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">convert_format</span><span class="params">(data)</span>:</span></span><br><span class="line">       <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+</blockquote>
+<h2 id="考察的知识点"><a href="#考察的知识点" class="headerlink" title="考察的知识点"></a>考察的知识点</h2><pre><code>1.数据类型，Python里set的查找效率比list高
+2.字典推导，更Pythonic的写法
+3.对象引用，Python的赋值是给值贴上标签，而不是把值放入盒子</code></pre><img src="/images/assignment.png" title="流畅的Python 第八章" style="width: 70%">
+
+<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><ul>
+<li>先根据<code>industry_list</code>构建一个包含所有项的字典<code>data_dict</code>；</li>
+<li>遍历<code>industry_list</code>并利用<strong>对象引用</strong>的特点自动更新<code>data_dict</code>的嵌套关系；</li>
+<li>最后过滤掉那些只存在于嵌套之内的值；</li>
+</ul>
+<h2 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"><span class="string">@author: shaoxyz</span></span><br><span class="line"><span class="string">@file: convert_format.py</span></span><br><span class="line"><span class="string">@time: 2020-07-20 11:09</span></span><br><span class="line"><span class="string">@desc:</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"><span class="keyword">from</span> typing <span class="keyword">import</span> List</span><br><span class="line">industry_list = [</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"女装"</span>, <span class="string">"name"</span>: <span class="string">"连衣裙"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span>: <span class="string">"女装"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"女装"</span>, <span class="string">"name"</span>: <span class="string">"半身裙"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"女装"</span>, <span class="string">"name"</span>: <span class="string">"A字裙"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"数码"</span>, <span class="string">"name"</span>: <span class="string">"电脑配件"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"parent_ind"</span>: <span class="string">"电脑配件"</span>, <span class="string">"name"</span>: <span class="string">"内存"</span>&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span>: <span class="string">"数码"</span>&#125;,</span><br><span class="line">]</span><br><span class="line"></span><br><span class="line">expect_output = &#123;</span><br><span class="line">    <span class="string">"数码"</span>: &#123;</span><br><span class="line">        <span class="string">"电脑配件"</span>: &#123;</span><br><span class="line">            <span class="string">"内存"</span>: &#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;, </span><br><span class="line">    <span class="string">"女装"</span>: &#123;</span><br><span class="line">        <span class="string">"连衣裙"</span>: &#123;&#125;, </span><br><span class="line">        <span class="string">"半身裙"</span>: &#123;&#125;, </span><br><span class="line">        <span class="string">"A字裙"</span>: &#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">convert_format</span><span class="params">(data: List[dict])</span> -&gt; dict:</span></span><br><span class="line">    <span class="string">"""</span></span><br><span class="line"><span class="string">    将包含父子关系值的列表 转换为 嵌套字典</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line"></span><br><span class="line">    data_dict = &#123;i.get(<span class="string">"name"</span>): &#123;&#125; <span class="keyword">for</span> i <span class="keyword">in</span> data&#125;</span><br><span class="line">    has_parent = set()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> data:</span><br><span class="line">        parent_ind = i.get(<span class="string">"parent_ind"</span>)</span><br><span class="line">        name = i.get(<span class="string">"name"</span>)</span><br><span class="line">        <span class="keyword">if</span> parent_ind:</span><br><span class="line">            has_parent.add(name)</span><br><span class="line">        <span class="keyword">if</span> parent_ind <span class="keyword">in</span> data_dict:</span><br><span class="line">            data_dict[parent_ind][name] = data_dict[name]  <span class="comment"># KEY</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Filter</span></span><br><span class="line">    res = &#123;key: val <span class="keyword">for</span> key, val <span class="keyword">in</span> data_dict.items() <span class="keyword">if</span> key <span class="keyword">not</span> <span class="keyword">in</span> has_parent&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> res</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_convert_format</span><span class="params">()</span>:</span></span><br><span class="line">    res = convert_format(industry_list)</span><br><span class="line">    <span class="keyword">assert</span> res == expect_output</span><br><span class="line">    print(<span class="string">"well done"</span>)</span><br></pre></td></tr></table></figure>
+
+
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://shaoxyz.github.io/2020/07/16/SQL%E8%81%94%E8%A1%A8%E6%9F%A5%E8%AF%A2%E8%BE%85%E5%8A%A9%E8%A1%A8%E5%8E%BB%E9%87%8D/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -638,7 +736,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-count">5</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
